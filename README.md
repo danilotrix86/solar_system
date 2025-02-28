@@ -2,7 +2,7 @@
 
 An interactive 3D simulation of our solar system built with Three.js. This web-based application provides a scientifically accurate (though scaled) representation of the planets, their sizes, distances, and orbital characteristics.
 
-![Solar System Simulation](https://i.imgur.com/your-screenshot-image.jpg)
+![Solar System Simulation](https://cdn.britannica.com/93/95393-050-5329EE11/planets-distance-order-Sun.jpg)
 
 ## Features
 
@@ -15,10 +15,6 @@ An interactive 3D simulation of our solar system built with Three.js. This web-b
 - **Complete Solar System**: Includes the Sun, all planets, major moons, and even Pluto
 
 ## Usage
-
-### Live Demo
-
-Visit the live demo at: [Your Live Demo URL]
 
 ### Local Setup
 
@@ -92,4 +88,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-Created with ❤️ by [Your Name]
+Created with ❤️ by Danilo Vaccalluzzo
