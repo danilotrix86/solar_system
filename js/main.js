@@ -1,15 +1,47 @@
-// Global variables
+/**
+ * Solar System Simulation
+ * An interactive 3D simulation of the Solar System using Three.js
+ * 
+ * This simulation features:
+ * - Accurately scaled planet sizes (with SIZE_SCALE to make small planets visible)
+ * - Accurately scaled distances (with DISTANCE_SCALE to fit on screen)
+ * - Realistic orbital periods and rotational periods
+ * - Interactive controls for camera movement
+ * - Planet selection and information display
+ * - Customizable simulation speed and visual settings
+ */
+
+// ------------------- GLOBAL VARIABLES -------------------
+
+// Three.js core components
 let scene, camera, renderer, controls;
+
+// Solar system objects
 let sun, planets = {}, planetData = {};
+
+// Interaction and animation helpers
 let clock = new THREE.Clock();
 let selectedPlanet = null;
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
-const EARTH_RADIUS = 0.5; // Base scale
-const DISTANCE_SCALE = 10; // Scale down the distances to fit screen
-const SIZE_SCALE = 0.1; // Scale up small planets to be visible
 
-// Planet data with accurate relative sizes and distances (scaled)
+// Scaling constants
+const EARTH_RADIUS = 0.5;     // Base scale for planet sizes
+const DISTANCE_SCALE = 10;    // Scale down the distances to fit screen
+const SIZE_SCALE = 0.1;       // Scale up small planets to be visible
+
+// ------------------- CELESTIAL BODY DATA -------------------
+
+/**
+ * Celestial body data with scientifically accurate relative sizes and distances
+ * All values are relative to Earth where applicable:
+ * - radius: relative to Earth's radius
+ * - distance: in Astronomical Units (AU), scaled by DISTANCE_SCALE
+ * - rotationPeriod: in Earth days (negative values indicate retrograde rotation)
+ * - orbitPeriod: in Earth years
+ * - tilt: axial tilt in degrees
+ * - eccentricity: orbital eccentricity (0 = perfect circle, higher = more elliptical)
+ */
 const celestialBodies = {
     sun: {
         name: "Sun",
@@ -19,7 +51,6 @@ const celestialBodies = {
         rotationPeriod: 27, // days
         orbitPeriod: 0,
         tilt: 7.25,
-        // Use color instead of texture
         description: "The Sun is the star at the center of the Solar System. It is a nearly perfect sphere of hot plasma, heated to incandescence by nuclear fusion reactions in its core."
     },
     mercury: {
@@ -223,57 +254,65 @@ const celestialBodies = {
     }
 };
 
-// UI settings
+// ------------------- UI SETTINGS -------------------
+
+/**
+ * User interface settings for controlling the simulation
+ */
 const settings = {
-    showOrbits: true,
-    rotationSpeed: 1,
-    orbitSpeed: 1,
-    followPlanet: false,
-    planetScale: 1,
-    distanceScale: 1,
-    showLabels: true
+    showOrbits: true,        // Show orbital paths
+    rotationSpeed: 1,        // Speed of planet rotation
+    orbitSpeed: 1,           // Speed of orbital movement
+    followPlanet: false,     // Camera follows selected planet
+    planetScale: 1,          // Scale factor for planet sizes
+    distanceScale: 1,        // Scale factor for orbital distances
+    showLabels: true         // Show planet name labels
 };
 
-// Initialize Three.js scene
+// ------------------- INITIALIZATION FUNCTIONS -------------------
+
+/**
+ * Initialize the Three.js scene and start the simulation
+ */
 function init() {
-    // Create scene
+    // Create the scene to hold all objects
     scene = new THREE.Scene();
     
-    // Create camera
+    // Create perspective camera with initial position
     camera = new THREE.PerspectiveCamera(
-        60, // FOV
-        window.innerWidth / window.innerHeight, // aspect ratio
-        0.1, // near clipping plane
-        1000 // far clipping plane
+        60,                                     // Field of view (degrees)
+        window.innerWidth / window.innerHeight, // Aspect ratio
+        0.1,                                    // Near clipping plane
+        1000                                    // Far clipping plane
     );
     camera.position.set(0, 20, 50);
     
-    // Create renderer
+    // Configure the WebGL renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Smoother shadow edges
     document.getElementById('container').appendChild(renderer.domElement);
     
-    // Add orbit controls
+    // Add orbit controls for mouse/touch interaction
     controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.25;
+    controls.enableDamping = true;     // Add inertia to controls
+    controls.dampingFactor = 0.25;     // Control inertia amount
     
     // Add ambient light for base illumination
     const ambientLight = new THREE.AmbientLight(0x333333);
     scene.add(ambientLight);
     
-    // Add starfield background
+    // Create background starfield
     createStarfield();
     
-    // Create celestial bodies
+    // Create all solar system objects
     createCelestialBodies();
     
-    // Set up GUI
+    // Set up control GUI
     createGUI();
     
-    // Event listeners
+    // Set up event listeners
     window.addEventListener('resize', onWindowResize, false);
     renderer.domElement.addEventListener('click', onMouseClick, false);
     
@@ -281,15 +320,19 @@ function init() {
     animate();
 }
 
-// Create a random starfield background
+/**
+ * Create a random starfield as background
+ * Generates 10,000 stars at random positions
+ */
 function createStarfield() {
     const starsGeometry = new THREE.BufferGeometry();
     const starsMaterial = new THREE.PointsMaterial({
         color: 0xffffff,
         size: 0.1,
-        sizeAttenuation: false
+        sizeAttenuation: false  // Stars don't get smaller with distance
     });
     
+    // Generate random star positions
     const starsVertices = [];
     for (let i = 0; i < 10000; i++) {
         const x = Math.random() * 2000 - 1000;
@@ -303,9 +346,22 @@ function createStarfield() {
     scene.add(starField);
 }
 
-// Create all celestial bodies
+/**
+ * Create all celestial bodies in the solar system
+ * This includes the sun, planets, moons, and orbital paths
+ */
 function createCelestialBodies() {
-    // Create sun with light source
+    // Create the Sun with light source
+    createSun();
+    
+    // Create all planets (except the sun)
+    createPlanets();
+}
+
+/**
+ * Create the Sun with its light source
+ */
+function createSun() {
     const sunGeometry = new THREE.SphereGeometry(celestialBodies.sun.radius * SIZE_SCALE, 64, 64);
     const sunMaterial = new THREE.MeshBasicMaterial({
         color: celestialBodies.sun.color,
@@ -317,15 +373,20 @@ function createCelestialBodies() {
     sun.userData = { body: celestialBodies.sun };
     scene.add(sun);
     
-    // Add point light at sun's position
+    // Add point light at sun's position to illuminate the scene
     const sunLight = new THREE.PointLight(0xffffff, 2, 0, 1);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.width = 2048;  // Higher resolution shadows
     sunLight.shadow.mapSize.height = 2048;
     scene.add(sunLight);
-    
-    // Create other planets
+}
+
+/**
+ * Create all planets and their moons
+ */
+function createPlanets() {
+    // Create each planet from the celestialBodies data
     for (const [key, body] of Object.entries(celestialBodies)) {
         if (key === 'sun') continue; // Skip sun as we've already created it
         
@@ -333,8 +394,8 @@ function createCelestialBodies() {
         const planetGroup = new THREE.Group();
         scene.add(planetGroup);
         
-        // Create planet geometry
-        const scaledRadius = Math.max(body.radius * SIZE_SCALE, 0.1); // Minimum size for visibility
+        // Create planet geometry with minimum size for visibility
+        const scaledRadius = Math.max(body.radius * SIZE_SCALE, 0.1);
         const planetGeometry = new THREE.SphereGeometry(scaledRadius, 32, 32);
         
         // Create planet material based on color
@@ -343,7 +404,7 @@ function createCelestialBodies() {
             shininess: 25
         });
         
-        // Create planet mesh
+        // Create the planet mesh
         const planet = new THREE.Mesh(planetGeometry, planetMaterial);
         planet.castShadow = true;
         planet.receiveShadow = true;
@@ -356,111 +417,22 @@ function createCelestialBodies() {
         
         // Create rings for Saturn and Uranus
         if (body.hasRings) {
-            const ringGeometry = new THREE.RingGeometry(
-                scaledRadius * 1.4,
-                scaledRadius * 2.5,
-                64
-            );
-            
-            // Create ring texture based on planet
-            let ringColor, ringOpacity;
-            if (key === 'saturn') {
-                ringColor = 0xf0e4c2;
-                ringOpacity = 0.7;
-            } else if (key === 'uranus') {
-                ringColor = 0x99ccff;
-                ringOpacity = 0.5;
-            }
-            
-            const ringMaterial = new THREE.MeshPhongMaterial({
-                color: ringColor,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: ringOpacity
-            });
-            
-            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-            ring.rotation.x = Math.PI / 2;
-            ring.rotation.y = body.tilt * Math.PI / 180;
-            planet.add(ring);
+            createPlanetRings(planet, key, scaledRadius);
         }
         
-        // Create orbit line
-        const orbitCurve = createOrbitPath(body);
-        const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve);
-        const orbitMaterial = new THREE.LineBasicMaterial({
-            color: 0x444444,
-            transparent: true,
-            opacity: 0.5
-        });
-        const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
-        orbitLine.rotation.x = Math.PI / 2;
+        // Create orbit line showing the planet's path
+        const orbitLine = createOrbitLine(body);
         scene.add(orbitLine);
         
         // Create moons if this body has them
         if (body.moons) {
-            body.moons.forEach((moonData, index) => {
-                const moonGroup = new THREE.Group();
-                
-                // Create moon
-                const moonGeometry = new THREE.SphereGeometry(
-                    Math.max(moonData.radius * SIZE_SCALE, 0.05), // Minimum size for visibility
-                    16, 16
-                );
-                
-                const moonMaterial = new THREE.MeshPhongMaterial({
-                    color: moonData.color
-                });
-                
-                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                moon.castShadow = true;
-                moon.receiveShadow = true;
-                
-                // Position the moon
-                moon.position.x = moonData.distance;
-                
-                // Add to moon group
-                moonGroup.add(moon);
-                
-                // Create moon orbit
-                const moonOrbitPoints = [];
-                for (let i = 0; i <= 50; i++) {
-                    const angle = (i / 50) * Math.PI * 2;
-                    moonOrbitPoints.push(new THREE.Vector3(
-                        Math.cos(angle) * moonData.distance,
-                        0,
-                        Math.sin(angle) * moonData.distance
-                    ));
-                }
-                
-                const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
-                const moonOrbitMaterial = new THREE.LineBasicMaterial({
-                    color: 0x444444,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const moonOrbit = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
-                moonGroup.add(moonOrbit);
-                
-                // Add moon group to planet
-                planet.add(moonGroup);
-                
-                // Store reference
-                if (!planetData[key]) {
-                    planetData[key] = { moons: [] };
-                }
-                planetData[key].moons.push({
-                    mesh: moon,
-                    data: moonData,
-                    group: moonGroup
-                });
-            });
+            createMoons(body, planet, key);
         }
         
         // Add planet metadata
         planet.userData = { body: body };
         
-        // Store references
+        // Store references for animation updates
         planets[key] = {
             mesh: planet,
             group: planetGroup,
@@ -473,34 +445,156 @@ function createCelestialBodies() {
     }
 }
 
-// Create orbit path based on planet data, including eccentricity
-function createOrbitPath(body) {
-    const points = [];
-    const segments = 64;
-    const eccentricity = body.eccentricity || 0;
+/**
+ * Create rings for planets like Saturn and Uranus
+ * @param {THREE.Mesh} planet - The planet mesh
+ * @param {string} planetKey - Key identifying the planet (e.g., 'saturn')
+ * @param {number} scaledRadius - The scaled radius of the planet
+ */
+function createPlanetRings(planet, planetKey, scaledRadius) {
+    const body = celestialBodies[planetKey];
     
-    // Semi-major axis
-    const a = body.distance;
-    // Semi-minor axis
-    const b = a * Math.sqrt(1 - eccentricity * eccentricity);
-    // Focus distance from center
-    const c = a * eccentricity;
+    const ringGeometry = new THREE.RingGeometry(
+        scaledRadius * 1.4,  // Inner radius
+        scaledRadius * 2.5,  // Outer radius
+        64                   // Segments
+    );
+    
+    // Create ring with appropriate color and opacity based on the planet
+    let ringColor, ringOpacity;
+    if (planetKey === 'saturn') {
+        ringColor = 0xf0e4c2;
+        ringOpacity = 0.7;
+    } else if (planetKey === 'uranus') {
+        ringColor = 0x99ccff;
+        ringOpacity = 0.5;
+    }
+    
+    const ringMaterial = new THREE.MeshPhongMaterial({
+        color: ringColor,
+        side: THREE.DoubleSide,  // Visible from both sides
+        transparent: true,
+        opacity: ringOpacity
+    });
+    
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    
+    // Rotate ring to lie in the x-z plane
+    ring.rotation.x = Math.PI / 2;
+    
+    // Tilt the ring according to the planet's axial tilt
+    ring.rotation.y = body.tilt * Math.PI / 180;
+    
+    // Add the ring to the planet
+    planet.add(ring);
+}
+
+/**
+ * Create orbit path line for visualizing a planet's orbit
+ * @param {Object} body - The celestial body data
+ * @returns {THREE.Line} - The orbit line object
+ */
+function createOrbitLine(body) {
+    const orbitCurve = createOrbitPath(body);
+    const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitCurve);
+    const orbitMaterial = new THREE.LineBasicMaterial({
+        color: 0x444444,
+        transparent: true,
+        opacity: 0.5
+    });
+    
+    const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+    
+    // Rotate to lie in the x-z plane
+    orbitLine.rotation.x = Math.PI / 2;
+    
+    return orbitLine;
+}
+
+/**
+ * Create moons for a planet
+ * @param {Object} body - The planet data
+ * @param {THREE.Mesh} planet - The planet mesh
+ * @param {string} planetKey - Key identifying the planet
+ */
+function createMoons(body, planet, planetKey) {
+    body.moons.forEach((moonData, index) => {
+        const moonGroup = new THREE.Group();
+        
+        // Create moon with minimum size for visibility
+        const moonGeometry = new THREE.SphereGeometry(
+            Math.max(moonData.radius * SIZE_SCALE, 0.05),
+            16, 16
+        );
+        
+        const moonMaterial = new THREE.MeshPhongMaterial({
+            color: moonData.color
+        });
+        
+        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+        moon.castShadow = true;
+        moon.receiveShadow = true;
+        
+        // Position the moon at its orbital distance
+        moon.position.x = moonData.distance;
+        
+        // Add to moon group for independent rotation
+        moonGroup.add(moon);
+        
+        // Create moon's orbital path visualization
+        createMoonOrbit(moonGroup, moonData);
+        
+        // Add moon group to planet
+        planet.add(moonGroup);
+        
+        // Store reference for animation
+        if (!planetData[planetKey]) {
+            planetData[planetKey] = { moons: [] };
+        }
+        
+        planetData[planetKey].moons.push({
+            mesh: moon,
+            data: moonData,
+            group: moonGroup
+        });
+    });
+}
+
+/**
+ * Create a visualization of a moon's orbit
+ * @param {THREE.Group} moonGroup - The moon's group object
+ * @param {Object} moonData - Data for the moon
+ */
+function createMoonOrbit(moonGroup, moonData) {
+    // Generate points for a circular orbit
+    const moonOrbitPoints = [];
+    const segments = 50;
     
     for (let i = 0; i <= segments; i++) {
         const angle = (i / segments) * Math.PI * 2;
-        
-        // Parametric equation of ellipse
-        const x = a * Math.cos(angle);
-        const z = b * Math.sin(angle);
-        
-        // Offset by focus
-        points.push(new THREE.Vector3(x - c, 0, z));
+        moonOrbitPoints.push(new THREE.Vector3(
+            Math.cos(angle) * moonData.distance,
+            0,
+            Math.sin(angle) * moonData.distance
+        ));
     }
     
-    return points;
+    const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
+    const moonOrbitMaterial = new THREE.LineBasicMaterial({
+        color: 0x444444,
+        transparent: true,
+        opacity: 0.3
+    });
+    
+    const moonOrbit = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
+    moonGroup.add(moonOrbit);
 }
 
-// Create text label for a planet
+/**
+ * Create a text label for a planet
+ * @param {THREE.Mesh} planet - The planet mesh
+ * @param {string} name - The planet's name
+ */
 function createPlanetLabel(planet, name) {
     const div = document.createElement('div');
     div.className = 'planet-label';
@@ -511,54 +605,73 @@ function createPlanetLabel(planet, name) {
     div.style.fontSize = '12px';
     div.style.fontWeight = 'bold';
     div.style.textShadow = '0 0 3px black';
-    div.style.pointerEvents = 'none';
+    div.style.pointerEvents = 'none';  // Don't intercept mouse events
     div.style.display = settings.showLabels ? 'block' : 'none';
     
+    // Store label reference in the planet's userData
     planet.userData.label = div;
     document.body.appendChild(div);
 }
 
-// Update position of planet labels
-function updatePlanetLabels() {
-    for (const [key, planetObj] of Object.entries(planets)) {
-        const planet = planetObj.mesh;
-        const label = planet.userData.label;
+// ------------------- ORBIT CALCULATION FUNCTIONS -------------------
+
+/**
+ * Generate points for an elliptical orbit path
+ * @param {Object} body - The celestial body data
+ * @returns {Array} - Array of Vector3 points forming the orbit path
+ */
+function createOrbitPath(body) {
+    const points = [];
+    const segments = 64;
+    const eccentricity = body.eccentricity || 0;
+    
+    // Semi-major axis (average distance from the sun)
+    const a = body.distance;
+    
+    // Semi-minor axis
+    const b = a * Math.sqrt(1 - eccentricity * eccentricity);
+    
+    // Focus distance from center
+    const c = a * eccentricity;
+    
+    // Generate points along the elliptical path
+    for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
         
-        if (label) {
-            // Get screen position of planet
-            const position = new THREE.Vector3();
-            position.setFromMatrixPosition(planet.matrixWorld);
-            position.project(camera);
-            
-            // Convert to screen coordinates
-            const x = (position.x * 0.5 + 0.5) * window.innerWidth;
-            const y = -(position.y * 0.5 - 0.5) * window.innerHeight;
-            
-            // Check if planet is in front of camera
-            const isBehindCamera = position.z > 1;
-            
-            // Update label position
-            label.style.left = x + 'px';
-            label.style.top = y - 20 + 'px'; // Offset above planet
-            label.style.display = settings.showLabels && !isBehindCamera ? 'block' : 'none';
-        }
+        // Parametric equation of ellipse
+        const x = a * Math.cos(angle);
+        const z = b * Math.sin(angle);
+        
+        // Offset by focus to position sun at the focus of the ellipse
+        points.push(new THREE.Vector3(x - c, 0, z));
     }
+    
+    return points;
 }
 
-// Create GUI controls
+// ------------------- UI AND CONTROL FUNCTIONS -------------------
+
+/**
+ * Create GUI controls using dat.GUI
+ */
 function createGUI() {
     const gui = new dat.GUI();
     
-    // Add general controls
+    // Add visualization controls
     gui.add(settings, 'showOrbits').name('Show Orbits').onChange(value => {
         Object.values(planets).forEach(planet => {
             planet.orbit.visible = value;
         });
     });
     
+    // Add animation speed controls
     gui.add(settings, 'rotationSpeed', 0, 5).name('Rotation Speed');
     gui.add(settings, 'orbitSpeed', 0, 5).name('Orbit Speed');
+    
+    // Add camera control
     gui.add(settings, 'followPlanet').name('Follow Selected Planet');
+    
+    // Add label visibility control
     gui.add(settings, 'showLabels').name('Show Labels').onChange(value => {
         Object.values(planets).forEach(planet => {
             if (planet.mesh.userData.label) {
@@ -567,7 +680,7 @@ function createGUI() {
         });
     });
     
-    // Add planet selection
+    // Add planet selection dropdown
     const planetOptions = Object.fromEntries(
         ['None', ...Object.keys(celestialBodies)].map(name => [name, name])
     );
@@ -585,11 +698,14 @@ function createGUI() {
             }
         });
     
-    // Minimize GUI by default
+    // Minimize GUI by default for cleaner view
     gui.close();
 }
 
-// Focus camera on a specific planet
+/**
+ * Focus camera on a specific planet
+ * @param {string} planetKey - Key identifying the planet to focus on
+ */
 function focusOnPlanet(planetKey) {
     if (planets[planetKey]) {
         const planet = planets[planetKey].mesh;
@@ -614,16 +730,22 @@ function focusOnPlanet(planetKey) {
     }
 }
 
-// Handle window resize
+/**
+ * Handle window resize
+ * Updates camera aspect ratio and renderer size
+ */
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Handle mouse clicks for planet selection
+/**
+ * Handle mouse clicks for planet selection
+ * @param {MouseEvent} event - The mouse click event
+ */
 function onMouseClick(event) {
-    // Calculate mouse position in normalized device coordinates
+    // Calculate mouse position in normalized device coordinates (-1 to +1)
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     
@@ -654,7 +776,39 @@ function onMouseClick(event) {
     }
 }
 
-// Display planet information panel
+/**
+ * Update position of planet labels to follow their planets in the 2D view
+ */
+function updatePlanetLabels() {
+    for (const [key, planetObj] of Object.entries(planets)) {
+        const planet = planetObj.mesh;
+        const label = planet.userData.label;
+        
+        if (label) {
+            // Get screen position of planet
+            const position = new THREE.Vector3();
+            position.setFromMatrixPosition(planet.matrixWorld);
+            position.project(camera);
+            
+            // Convert to screen coordinates
+            const x = (position.x * 0.5 + 0.5) * window.innerWidth;
+            const y = -(position.y * 0.5 - 0.5) * window.innerHeight;
+            
+            // Check if planet is in front of camera
+            const isBehindCamera = position.z > 1;
+            
+            // Update label position
+            label.style.left = x + 'px';
+            label.style.top = y - 20 + 'px'; // Offset above planet
+            label.style.display = settings.showLabels && !isBehindCamera ? 'block' : 'none';
+        }
+    }
+}
+
+/**
+ * Display planet information panel with details about the selected planet
+ * @param {Object} planetData - Data for the selected planet
+ */
 function showPlanetInfo(planetData) {
     const infoPanel = document.getElementById('planet-info');
     
@@ -691,67 +845,20 @@ function showPlanetInfo(planetData) {
     infoPanel.style.display = 'block';
 }
 
-// Animation loop
+// ------------------- ANIMATION FUNCTIONS -------------------
+
+/**
+ * Main animation loop
+ * Updates planet positions, rotations, and renders the scene
+ */
 function animate() {
     requestAnimationFrame(animate);
     
-    const delta = clock.getDelta();
-    const elapsedTime = clock.getElapsedTime();
+    const delta = clock.getDelta();         // Time since last frame
+    const elapsedTime = clock.getElapsedTime();  // Total elapsed time
     
     // Update planet positions and rotations
-    Object.entries(planets).forEach(([key, planetObj]) => {
-        const planet = planetObj.mesh;
-        const planetGroup = planetObj.group;
-        const planetData = planetObj.data;
-        
-        // Update orbital position (elliptical orbit)
-        const orbitProgress = (elapsedTime * settings.orbitSpeed) / (planetData.orbitPeriod * 20);
-        const orbitAngle = orbitProgress * Math.PI * 2;
-        
-        // Calculate elliptical orbit position if eccentricity exists
-        if (planetData.eccentricity) {
-            const a = planetData.distance;
-            const e = planetData.eccentricity;
-            const b = a * Math.sqrt(1 - e * e);
-            const c = a * e;
-            
-            planetGroup.position.x = c;
-            planet.position.x = a * Math.cos(orbitAngle) - c;
-            planet.position.z = b * Math.sin(orbitAngle);
-        } else {
-            // Circular orbit
-            planet.position.x = Math.cos(orbitAngle) * planetData.distance;
-            planet.position.z = Math.sin(orbitAngle) * planetData.distance;
-        }
-        
-        // Update planet rotation
-        if (planetData.rotationPeriod !== 0) {
-            const rotationSpeed = (delta * settings.rotationSpeed) / (Math.abs(planetData.rotationPeriod) / 10);
-            planet.rotation.y += planetData.rotationPeriod > 0 ? rotationSpeed : -rotationSpeed;
-        }
-        
-        // Apply axial tilt
-        planet.rotation.x = planetData.tilt * Math.PI / 180;
-        
-        // Update moons if any
-        if (planetData.moons && planetData[key] && planetData[key].moons) {
-            planetData[key].moons.forEach((moon, index) => {
-                const moonObj = moon.mesh;
-                const moonGroup = moon.group;
-                const moonData = moon.data;
-                
-                // Update orbital position
-                const moonOrbitSpeed = (delta * settings.orbitSpeed) / (moonData.orbitPeriod / 2);
-                moonGroup.rotation.y += moonOrbitSpeed;
-                
-                // Update moon rotation
-                if (moonData.rotationPeriod !== 0) {
-                    const moonRotationSpeed = (delta * settings.rotationSpeed) / (Math.abs(moonData.rotationPeriod) / 10);
-                    moonObj.rotation.y += moonData.rotationPeriod > 0 ? moonRotationSpeed : -moonRotationSpeed;
-                }
-            });
-        }
-    });
+    updatePlanets(delta, elapsedTime);
     
     // Follow selected planet if enabled
     if (settings.followPlanet && selectedPlanet) {
@@ -771,5 +878,103 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Start the application
+/**
+ * Update positions and rotations of all planets and moons
+ * @param {number} delta - Time since last frame
+ * @param {number} elapsedTime - Total elapsed time
+ */
+function updatePlanets(delta, elapsedTime) {
+    Object.entries(planets).forEach(([key, planetObj]) => {
+        const planet = planetObj.mesh;
+        const planetGroup = planetObj.group;
+        const planetData = planetObj.data;
+        
+        // Update orbital position (elliptical orbit)
+        updatePlanetOrbit(planetGroup, planet, planetData, elapsedTime);
+        
+        // Update planet rotation
+        updatePlanetRotation(planet, planetData, delta);
+        
+        // Apply axial tilt
+        planet.rotation.x = planetData.tilt * Math.PI / 180;
+        
+        // Update moons if any
+        updateMoons(key, delta);
+    });
+}
+
+/**
+ * Update a planet's orbital position
+ * @param {THREE.Group} planetGroup - The planet's group object
+ * @param {THREE.Mesh} planet - The planet mesh
+ * @param {Object} planetData - The planet data
+ * @param {number} elapsedTime - Total elapsed time
+ */
+function updatePlanetOrbit(planetGroup, planet, planetData, elapsedTime) {
+    // Calculate orbital progress based on orbital period
+    const orbitProgress = (elapsedTime * settings.orbitSpeed) / (planetData.orbitPeriod * 20);
+    const orbitAngle = orbitProgress * Math.PI * 2;
+    
+    // Calculate elliptical orbit position if eccentricity exists
+    if (planetData.eccentricity) {
+        const a = planetData.distance;
+        const e = planetData.eccentricity;
+        const b = a * Math.sqrt(1 - e * e);
+        const c = a * e;
+        
+        // Position the sun at one focus of the ellipse
+        planetGroup.position.x = c;
+        
+        // Calculate position on elliptical orbit
+        planet.position.x = a * Math.cos(orbitAngle) - c;
+        planet.position.z = b * Math.sin(orbitAngle);
+    } else {
+        // Circular orbit (simplified)
+        planet.position.x = Math.cos(orbitAngle) * planetData.distance;
+        planet.position.z = Math.sin(orbitAngle) * planetData.distance;
+    }
+}
+
+/**
+ * Update a planet's rotation around its axis
+ * @param {THREE.Mesh} planet - The planet mesh
+ * @param {Object} planetData - The planet data
+ * @param {number} delta - Time since last frame
+ */
+function updatePlanetRotation(planet, planetData, delta) {
+    if (planetData.rotationPeriod !== 0) {
+        // Calculate rotation speed based on period
+        const rotationSpeed = (delta * settings.rotationSpeed) / (Math.abs(planetData.rotationPeriod) / 10);
+        
+        // Apply rotation (handling retrograde rotation with negative period)
+        planet.rotation.y += planetData.rotationPeriod > 0 ? rotationSpeed : -rotationSpeed;
+    }
+}
+
+/**
+ * Update all moons for a planet
+ * @param {string} planetKey - The planet key
+ * @param {number} delta - Time since last frame
+ */
+function updateMoons(planetKey, delta) {
+    if (planetData[planetKey] && planetData[planetKey].moons) {
+        planetData[planetKey].moons.forEach((moon) => {
+            const moonObj = moon.mesh;
+            const moonGroup = moon.group;
+            const moonData = moon.data;
+            
+            // Update orbital position
+            const moonOrbitSpeed = (delta * settings.orbitSpeed) / (moonData.orbitPeriod / 2);
+            moonGroup.rotation.y += moonOrbitSpeed;
+            
+            // Update moon rotation
+            if (moonData.rotationPeriod !== 0) {
+                const moonRotationSpeed = (delta * settings.rotationSpeed) / (Math.abs(moonData.rotationPeriod) / 10);
+                moonObj.rotation.y += moonData.rotationPeriod > 0 ? moonRotationSpeed : -moonRotationSpeed;
+            }
+        });
+    }
+}
+
+// Start the application when the window loads
 window.onload = init;

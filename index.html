@@ -4,19 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solar System Simulation</title>
+    <!-- Custom stylesheet -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- Main information panel -->
     <div id="info">
         <h1>Solar System</h1>
         <p>Click on a planet to focus. Use mouse to rotate view. Scroll to zoom.</p>
     </div>
+    
+    <!-- Planet information panel (appears when a planet is selected) -->
     <div id="planet-info"></div>
+    
+    <!-- Container for the Three.js canvas -->
     <div id="container"></div>
     
+    <!-- External libraries -->
+    <!-- Three.js for 3D rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- dat.GUI for control interface -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <!-- OrbitControls for camera manipulation -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Main application script -->
     <script src="js/main.js"></script>
 </body>
 </html>
